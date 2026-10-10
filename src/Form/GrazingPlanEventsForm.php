@@ -89,10 +89,10 @@ class GrazingPlanEventsForm extends FormBase {
       $done_events = [];
       $pending_events = [];
       foreach ($grazing_events as $grazing_event_id => $grazing_event) {
-        if ($grazing_event->getLog()->get('status')->value === 'done') {
+        if ($grazing_event->getStatus() === 'done') {
           $done_events[$grazing_event_id] = $grazing_event;
         }
-        else {
+        elseif ($grazing_event->getStatus() === 'pending') {
           $pending_events[$grazing_event_id] = $grazing_event;
         }
       }
@@ -671,7 +671,7 @@ class GrazingPlanEventsForm extends FormBase {
       // completed event is the most recent.
       $last_done_start = NULL;
       foreach ($grazing_events as $grazing_event) {
-        if ($grazing_event->getLog()->get('status')->value === 'done') {
+        if ($grazing_event->getStatus() === 'done') {
           $last_done_start = $grazing_event->getLog()->get('timestamp')->value;
         }
       }

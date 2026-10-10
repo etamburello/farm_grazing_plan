@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getStatus()` method to the grazing event bundle class.
+
 ### Changed
 
 - The "Add grazing event" form now collects the duration and recovery in

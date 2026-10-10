@@ -20,4 +20,12 @@ interface GrazingEventInterface extends PlanRecordInterface {
    */
   public function getLog(): LogInterface;
 
+  /**
+   * Returns the grazing event movement log's status.
+   *
+   * @return string
+   *   The log status.
+   */
+  public function getStatus(): string;
+
 }
