@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `getStatus()` method to the grazing event bundle class.
+- Add `getAsset()`, `getLocation()`, and `getStatus()` methods to the grazing
+  event bundle class.
 
 ### Changed
 

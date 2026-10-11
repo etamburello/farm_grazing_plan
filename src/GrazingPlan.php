@@ -53,10 +53,7 @@ class GrazingPlan implements GrazingPlanInterface {
     $grazing_events_by_asset = [];
     $grazing_events = $this->getGrazingEvents($plan);
     foreach ($grazing_events as $grazing_event) {
-      $assets = $grazing_event->getLog()->get('asset')->referencedEntities();
-      foreach ($assets as $asset) {
-        $grazing_events_by_asset[$asset->id()][$grazing_event->id()] = $grazing_event;
-      }
+      $grazing_events_by_asset[$grazing_event->getAsset()->id()][$grazing_event->id()] = $grazing_event;
     }
     return $grazing_events_by_asset;
   }
@@ -68,10 +65,7 @@ class GrazingPlan implements GrazingPlanInterface {
     $grazing_events_by_location = [];
     $grazing_events = $this->getGrazingEvents($plan);
     foreach ($grazing_events as $grazing_event) {
-      $locations = $grazing_event->getLog()->get('location')->referencedEntities();
-      foreach ($locations as $location) {
-        $grazing_events_by_location[$location->id()][$grazing_event->id()] = $grazing_event;
-      }
+      $grazing_events_by_location[$grazing_event->getLocation()->id()][$grazing_event->id()] = $grazing_event;
     }
     return $grazing_events_by_location;
   }
