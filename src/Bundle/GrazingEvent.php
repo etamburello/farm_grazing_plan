@@ -20,7 +20,12 @@ class GrazingEvent extends PlanRecord implements GrazingEventInterface {
    * {@inheritdoc}
    */
   public function label() {
-    return $this->t('Grazing event: %log - %plan', ['%log' => $this->getLog()->label(), '%plan' => $this->getPlan()->label()]);
+    return $this->t('@start: @asset -> @location (@plan)', [
+      '@start' => date('Y-m-d', (int) $this->get('start')->value),
+      '@asset' => $this->getAsset()->label(),
+      '@location' => $this->getLocation()->label(),
+      '@plan' => $this->getPlan()->label(),
+    ]);
   }
 
   /**

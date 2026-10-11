@@ -128,7 +128,7 @@ class GrazingPlanAddEventFormTest extends FarmBrowserTestBase {
 
     // Confirm that the status messages are shown.
     $this->assertSession()->pageTextContains('Created log: Move ' . $asset->label() . ' to ' . $location->label());
-    $this->assertSession()->pageTextContains('Added Grazing event: Move ' . $asset->label() . ' to ' . $location->label() . ' - ' . $this->plan->label());
+    $this->assertSession()->pageTextContains('Added ' . date('Y-m-d', $timestamp) . ': ' . $asset->label() . ' -> ' . $location->label() . ' (' . $this->plan->label() . ')');
 
     // Confirm that a new log was created with the expected values.
     $expected_log_count++;
@@ -175,7 +175,7 @@ class GrazingPlanAddEventFormTest extends FarmBrowserTestBase {
 
     // Confirm that the status messages are shown.
     $this->assertSession()->pageTextContains('Created log: Move ' . $asset->label() . ' to ' . $location->label());
-    $this->assertSession()->pageTextContains('Added Grazing event: Move ' . $asset->label() . ' to ' . $location->label() . ' - ' . $this->plan->label());
+    $this->assertSession()->pageTextContains('Added ' . date('Y-m-d', $timestamp) . ': ' . $asset->label() . ' -> ' . $location->label() . ' (' . $this->plan->label() . ')');
 
     // Confirm that a new log was created with the expected values.
     $expected_log_count++;
@@ -227,7 +227,7 @@ class GrazingPlanAddEventFormTest extends FarmBrowserTestBase {
     $this->submitForm($edit, 'Save');
 
     // Confirm that the status message is shown.
-    $this->assertSession()->pageTextContains('Added Grazing event: ' . $log->label() . ' - ' . $this->plan->label());
+    $this->assertSession()->pageTextContains('Added ' . date('Y-m-d', $timestamp) . ': ' . $this->animalAssets[0]->label() . ' -> ' . $this->landAssets[0]->label() . ' (' . $this->plan->label() . ')');
 
     // Confirm the grazing event plan record was created with the expected
     // values.
@@ -423,7 +423,7 @@ class GrazingPlanAddEventFormTest extends FarmBrowserTestBase {
     ], 'Save');
 
     // Confirm that the status message is shown.
-    $this->assertSession()->pageTextContains('Added Grazing event: ' . $log->label() . ' - ' . $this->plan->label());
+    $this->assertSession()->pageTextContains('Added ' . date('Y-m-d', $timestamp) . ': ' . $this->animalAssets[0]->label() . ' -> ' . $this->landAssets[0]->label() . ' (' . $this->plan->label() . ')');
 
     // Confirm the grazing event plan record was created with the expected
     // values.
