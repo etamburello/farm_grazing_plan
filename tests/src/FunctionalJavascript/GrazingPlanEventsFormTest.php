@@ -68,8 +68,31 @@ class GrazingPlanEventsFormTest extends FarmWebDriverTestBase {
     $this->drupalGet('/plan/' . $this->plan->id());
     $this->assertSession()->buttonExists('Save events');
 
+    // Confirm that the "Complete" button is not shown, because the user does
+    // not have access to the "Complete grazing event" quick form.
+    $this->assertCount(0, $this->getSession()->getPage()->findAll('css', '#farm-grazing-plan-events-form input[name^="complete_grazing_event_"]'));
+
+    // Grant access to the "Complete grazing event" quick form.
+    $permissions[] = 'update any activity log';
+    $user = $this->drupalCreateUser($permissions);
+    $this->drupalLogin($user);
+    $this->drupalGet('/plan/' . $this->plan->id());
+
     // Get the plan's grazing events grouped by asset.
     $grazing_events_by_asset = \Drupal::service('farm_grazing_plan')->getGrazingEventsByAsset($this->plan);
+
+    // Confirm that the "Complete" button is shown on the first pending event of
+    // each asset that has pending events.
+    $expected_complete_links = 0;
+    foreach ($grazing_events_by_asset as $grazing_events) {
+      foreach ($grazing_events as $grazing_event) {
+        if ($grazing_event->getStatus() === 'pending') {
+          $expected_complete_links++;
+          break;
+        }
+      }
+    }
+    $this->assertCount($expected_complete_links, $this->getSession()->getPage()->findAll('css', '#farm-grazing-plan-events-form input[name^="complete_grazing_event_"]'));
 
     // Confirm the expected fields are present for each asset and each of its
     // grazing events.
@@ -279,6 +302,14 @@ class GrazingPlanEventsFormTest extends FarmWebDriverTestBase {
     // Open the first asset's vertical tab.
     $this->clickGrazingEventsTab($first_asset_id);
 
+    // Confirm that the "Complete" button appears on the first pending event's
+    // row, and not on the second.
+    $complete_button = 'input[name="complete_grazing_event_' . $first_asset_id . '"]';
+    $first_row = $this->findGrazingEventRow($first_asset_id, $first_pending->id());
+    $this->assertNotNull($first_row->find('css', $complete_button));
+    $second_row = $this->findGrazingEventRow($first_asset_id, $last_pending->id());
+    $this->assertNull($second_row->find('css', $complete_button));
+
     // Drag the last pending row onto the first pending row, so the pending
     // grazing events are reordered.
     $rows = $this->getSession()->getPage()->findAll('css', '#edit-grazing-events-' . $first_asset_id . '-pending tr.draggable');
@@ -414,6 +445,20 @@ class GrazingPlanEventsFormTest extends FarmWebDriverTestBase {
     $log = $log_storage->load($plan_record->get('log')->target_id);
     $this->assertEquals('pending', $log->get('status')->value);
     $this->assertEquals($location->id(), $log->get('location')->target_id);
+
+    // Test that the "Complete" button redirects to the "Complete grazing event"
+    // quick form without saving the form.
+    $this->drupalGet('/plan/' . $this->plan->id());
+    $this->clickGrazingEventsTab($first_asset_id);
+    $expected_log_count = count($log_storage->loadMultiple());
+    $expected_plan_record_count = count($plan_record_storage->loadMultiple());
+    $button = $this->getSession()->getPage()->find('css', '#farm-grazing-plan-events-form input[name^="complete_grazing_event_"]');
+    $this->assertNotNull($button);
+    $button->press();
+    $this->assertTrue($this->assertSession()->waitForText('Select a pending grazing event.', 30000));
+    $this->assertSession()->buttonExists('Submit');
+    $this->assertCount($expected_log_count, $log_storage->loadMultiple());
+    $this->assertCount($expected_plan_record_count, $plan_record_storage->loadMultiple());
   }
 
   /**
@@ -438,6 +483,27 @@ class GrazingPlanEventsFormTest extends FarmWebDriverTestBase {
     $summary = $this->getSession()->getPage()->find('xpath', "//details[@id='edit-grazing-events-{$asset_id}-pending-start']/summary");
     $this->assertNotNull($summary);
     $summary->click();
+  }
+
+  /**
+   * Find the table row for a saved pending grazing event.
+   *
+   * The row is located via the planned duration field of the grazing event,
+   * which is unique to the row. Then we traverse up to the row element.
+   *
+   * @param int $asset_id
+   *   The asset ID.
+   * @param int|string $grazing_event_id
+   *   The grazing event (plan record) ID. Entity IDs loaded from storage are
+   *   strings, because database drivers return numeric values as strings.
+   *
+   * @return \Behat\Mink\Element\NodeElement
+   *   Returns the table row element.
+   */
+  protected function findGrazingEventRow(int $asset_id, int|string $grazing_event_id) {
+    $field = $this->getSession()->getPage()->findField('grazing_events[' . $asset_id . '][pending][' . $grazing_event_id . '][planned_duration]');
+    $this->assertNotNull($field);
+    return $field->find('xpath', 'ancestor::tr[1]');
   }
 
   /**

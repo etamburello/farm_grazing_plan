@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add a "Complete grazing event" quick form that shows a dropdown of the next
   pending grazing event for each asset in each grazing plan the user has
   access to, and marks the selected event as done on submit.
+- Add a "Complete" button to the first pending grazing event in the grazing
+  events form, which redirects to the "Complete grazing event" quick form and
+  prepopulates the dropdown.
 - Add `getAsset()`, `getLocation()`, and `getStatus()` methods to the grazing
   event bundle class.
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\farm_grazing_plan\Form;
 
+use Drupal\Core\Access\AccessManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -24,6 +25,7 @@ class GrazingPlanEventsForm extends FormBase {
   public function __construct(
     protected EntityTypeManagerInterface $entityTypeManager,
     protected GrazingPlanInterface $grazingPlan,
+    protected AccessManagerInterface $accessManager,
   ) {}
 
   /**
@@ -316,7 +318,24 @@ class GrazingPlanEventsForm extends FormBase {
         'planned_recovery' => !empty($grazing_event->get('recovery')->value) ? $grazing_event->get('recovery')->value / 24 : NULL,
         'weight' => $weight,
       ];
-      $table[$grazing_event_id] = $this->buildGrazingEventRowFields($status, $defaults, $group);
+
+      // Build the row fields.
+      $row = $this->buildGrazingEventRowFields($status, $defaults, $group);
+
+      // Add a button to complete the first pending event.
+      if ($status == 'pending' && $weight == 0 && $this->accessManager->checkNamedRoute('farm.quick.grazing_event_complete')) {
+        $row['operations']['complete'] = [
+          '#type' => 'submit',
+          '#value' => $this->t('Complete'),
+          '#name' => 'complete_grazing_event_' . $asset_id,
+          '#submit' => [[$this, 'completeGrazingEvent']],
+          // Limit validation errors, so that completing an event does not
+          // require the form to be valid.
+          '#limit_validation_errors' => [],
+        ];
+      }
+
+      $table[$grazing_event_id] = $row;
       $weight++;
     }
 
@@ -532,6 +551,13 @@ class GrazingPlanEventsForm extends FormBase {
 
     // Rebuild the form to remove the row.
     $form_state->setRebuild();
+  }
+
+  /**
+   * Submit handler for the "Complete" button on the first pending event.
+   */
+  public function completeGrazingEvent(array &$form, FormStateInterface $form_state) {
+    $form_state->setRedirect('farm.quick.grazing_event_complete');
   }
 
   /**
