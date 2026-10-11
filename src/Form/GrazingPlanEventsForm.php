@@ -270,6 +270,11 @@ class GrazingPlanEventsForm extends FormBase {
       '#header' => $headers,
     ];
 
+    // Add empty text to the pending events table.
+    if ($status == 'pending') {
+      $table['#empty'] = $this->t('No pending grazing events.');
+    }
+
     // Make the pending table draggable, so the pending grazing events can be
     // reordered.
     if ($status == 'pending') {
