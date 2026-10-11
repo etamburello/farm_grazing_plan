@@ -335,6 +335,19 @@ class GrazingPlanEventsForm extends FormBase {
         ];
       }
 
+      // Add a button to abandon a pending event.
+      if ($status == 'pending' && $this->accessManager->checkNamedRoute('farm_grazing_plan.abandon_event', ['plan' => $grazing_event->getPlan()->id(), 'grazing_event' => $grazing_event->id()])) {
+        $row['operations']['abandon'] = [
+          '#type' => 'submit',
+          '#value' => $this->t('Abandon'),
+          '#name' => 'abandon_grazing_event_' . $grazing_event_id,
+          '#submit' => [[$this, 'abandonGrazingEvent']],
+          // Limit validation errors, so that abandoning an event does not
+          // require the form to be valid.
+          '#limit_validation_errors' => [],
+        ];
+      }
+
       $table[$grazing_event_id] = $row;
       $weight++;
     }
@@ -565,6 +578,15 @@ class GrazingPlanEventsForm extends FormBase {
     $form_state->setRedirect('farm.quick.grazing_event_complete', [], [
       'query' => ['grazing_event' => $grazing_event_id],
     ]);
+  }
+
+  /**
+   * Submit handler for the "Abandon" button on a pending event.
+   */
+  public function abandonGrazingEvent(array &$form, FormStateInterface $form_state) {
+    $grazing_event_id = $form_state->getTriggeringElement()['#parents'][3];
+    $grazing_event = $this->entityTypeManager->getStorage('plan_record')->load($grazing_event_id);
+    $form_state->setRedirectUrl(Url::fromRoute('farm_grazing_plan.abandon_event', ['plan' => $grazing_event->getPlan()->id(), 'grazing_event' => $grazing_event->id()]));
   }
 
   /**

@@ -39,3 +39,19 @@ farm_grazing_plan.add_event:
         type: entity:plan
         bundle:
           - grazing
+farm_grazing_plan.abandon_event:
+  path: /plan/{plan}/grazing/event/{grazing_event}/abandon
+  defaults:
+    _form: Drupal\farm_grazing_plan\Form\GrazingPlanAbandonEventForm
+  requirements:
+    _entity_access: plan.update
+  options:
+    parameters:
+      plan:
+        type: entity:plan
+        bundle:
+          - grazing
+      grazing_event:
+        type: entity:plan_record
+        bundle:
+          - grazing_event

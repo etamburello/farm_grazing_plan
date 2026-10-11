@@ -459,6 +459,98 @@ class GrazingPlanEventsFormTest extends FarmWebDriverTestBase {
     $this->assertSession()->buttonExists('Submit');
     $this->assertCount($expected_log_count, $log_storage->loadMultiple());
     $this->assertCount($expected_plan_record_count, $plan_record_storage->loadMultiple());
+
+    // Test the "Abandon" button, which is shown on every pending event,
+    // unlike the "Complete" button, which is only shown on the first.
+    $this->drupalGet('/plan/' . $this->plan->id());
+
+    // Reload the grazing events, grouped by asset. The first asset now has
+    // three pending events, and the second asset has one.
+    $grazing_events_by_asset = \Drupal::service('farm_grazing_plan')->getGrazingEventsByAsset($this->plan);
+    $second_asset_id = array_key_last($grazing_events_by_asset);
+    $expected_abandon_count = 0;
+    foreach ($grazing_events_by_asset as $grazing_events) {
+      foreach ($grazing_events as $grazing_event) {
+        if ($grazing_event->getStatus() === 'pending') {
+          $expected_abandon_count++;
+        }
+      }
+    }
+    $this->assertCount($expected_abandon_count, $this->getSession()->getPage()->findAll('css', '#farm-grazing-plan-events-form input[name^="abandon_grazing_event_"]'));
+
+    // Confirm that each of the first asset's pending event rows has its own
+    // "Abandon" button.
+    $this->clickGrazingEventsTab($first_asset_id);
+    $pending_events = array_filter($grazing_events_by_asset[$first_asset_id], fn ($event) => $event->getStatus() === 'pending');
+    foreach ($pending_events as $grazing_event) {
+      $row = $this->findGrazingEventRow($first_asset_id, $grazing_event->id());
+      $this->assertNotNull($row->find('css', 'input[name="abandon_grazing_event_' . $grazing_event->id() . '"]'));
+    }
+
+    // Confirm that the "Abandon" button is not shown on new (unsaved) rows.
+    $button = $this->getSession()->getPage()->find('xpath', "//input[@name='add_grazing_event_{$first_asset_id}']");
+    $this->assertNotNull($button);
+    $button->press();
+    $new_row_prefix = 'grazing_events[' . $first_asset_id . '][pending][new_1]';
+    $this->assertNotNull($this->assertSession()->waitForField($new_row_prefix . '[location]', 30000));
+    $new_row = $this->findGrazingEventRow($first_asset_id, 'new_1');
+    $this->assertNull($new_row->find('css', 'input[name^="abandon_grazing_event_"]'));
+    $this->assertCount($expected_abandon_count, $this->getSession()->getPage()->findAll('css', '#farm-grazing-plan-events-form input[name^="abandon_grazing_event_"]'));
+
+    // Test that cancelling the confirmation does not abandon the event.
+    $cancel_event = reset($pending_events);
+    $this->drupalGet('/plan/' . $this->plan->id());
+    $this->clickGrazingEventsTab($first_asset_id);
+    $abandon_button = $this->getSession()->getPage()->find('css', '#farm-grazing-plan-events-form input[name="abandon_grazing_event_' . $cancel_event->id() . '"]');
+    $this->assertNotNull($abandon_button);
+    $abandon_button->press();
+    $this->assertTrue($this->assertSession()->waitForText('This will mark the movement log of grazing event', 30000));
+    $this->assertSession()->pageTextContains($cancel_event->label());
+    $this->assertSession()->buttonExists('Confirm');
+    $this->assertSession()->linkExists('Cancel');
+    $this->clickLink('Cancel');
+    $this->assertTrue($this->assertSession()->waitForText('Grazing events (by Asset)', 30000));
+    $log = $log_storage->load($cancel_event->get('log')->target_id);
+    $this->assertEquals('pending', $log->get('status')->value);
+
+    // Test that confirming the abandonment abandons the second asset's
+    // pending event.
+    $pending_events = array_filter($grazing_events_by_asset[$second_asset_id], fn ($event) => $event->getStatus() === 'pending');
+    $this->assertCount(1, $pending_events);
+    $confirm_event = reset($pending_events);
+    $this->drupalGet('/plan/' . $this->plan->id());
+    $this->clickGrazingEventsTab($second_asset_id);
+    $expected_log_count = count($log_storage->loadMultiple());
+    $expected_plan_record_count = count($plan_record_storage->loadMultiple());
+    $abandon_button = $this->getSession()->getPage()->find('css', '#farm-grazing-plan-events-form input[name="abandon_grazing_event_' . $confirm_event->id() . '"]');
+    $this->assertNotNull($abandon_button);
+    $abandon_button->press();
+    $this->assertTrue($this->assertSession()->waitForText('This will mark the movement log of grazing event', 30000));
+
+    // Provide a reason and confirm the abandonment.
+    $this->getSession()->getPage()->fillField('reason', 'No longer needed.');
+    $this->getSession()->getPage()->pressButton('Confirm');
+    $this->assertTrue($this->assertSession()->waitForText('Grazing events (by Asset)', 30000));
+
+    // Confirm the log is marked as abandoned, with the reason included in the
+    // revision message, and that no entities were deleted.
+    // Reload the page first to ensure we load the updated log.
+    $this->drupalGet('/plan/' . $this->plan->id());
+    $log = $log_storage->load($confirm_event->get('log')->target_id);
+    $this->assertEquals('abandoned', $log->get('status')->value);
+    $this->assertStringContainsString('Grazing event abandoned', $log->getRevisionLogMessage());
+    $this->assertStringContainsString('No longer needed.', $log->getRevisionLogMessage());
+    $this->assertCount($expected_log_count, $log_storage->loadMultiple());
+    $this->assertCount($expected_plan_record_count, $plan_record_storage->loadMultiple());
+
+    // Confirm the abandoned event no longer shows in the pending table, and
+    // that the empty text is shown for the second asset.
+    $this->assertSession()->fieldNotExists('grazing_events[' . $second_asset_id . '][pending][' . $confirm_event->id() . '][planned_duration]');
+    $this->clickGrazingEventsTab($second_asset_id);
+    $this->assertSession()->pageTextContains('No pending grazing events.');
+
+    // Confirm the remaining "Abandon" buttons are shown.
+    $this->assertCount($expected_abandon_count - 1, $this->getSession()->getPage()->findAll('css', '#farm-grazing-plan-events-form input[name^="abandon_grazing_event_"]'));
   }
 
   /**

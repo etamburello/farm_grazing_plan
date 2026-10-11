@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add a "Complete" button to the first pending grazing event in the grazing
   events form, which redirects to the "Complete grazing event" quick form and
   prepopulates the dropdown.
+- Add an "Abandon" button to all pending grazing events in the grazing events
+  form, which redirects to a confirmation form. A reason for abandoning can be
+  optionally provided.
 - Add `getAsset()`, `getLocation()`, and `getStatus()` methods to the grazing
   event bundle class.
 
