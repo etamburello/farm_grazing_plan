@@ -332,6 +332,10 @@ class GrazingPlanEventsForm extends FormBase {
           // Limit validation errors, so that completing an event does not
           // require the form to be valid.
           '#limit_validation_errors' => [],
+          // Add the button--primary class so this button is more prominent.
+          '#attributes' => [
+            'class' => ['button--primary'],
+          ],
         ];
       }
 
