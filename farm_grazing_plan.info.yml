@@ -9,6 +9,7 @@ dependencies:
   - farm:farm_entity
   - farm:farm_form
   - farm:farm_location
+  - farm:farm_quick
   - farm:farm_season
   - farm:farm_timeline
   - farm:plan
