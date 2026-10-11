@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The "Add grazing event" form now collects the duration and recovery in
   days. The values are converted to hours before being stored.
 
+### Fixed
+
+- Fix an error when saving the grazing events form for a plan that includes
+  an asset with no pending grazing events.
+
 ## [1.0.0-alpha5] 2026-10-09
 
 ### Added

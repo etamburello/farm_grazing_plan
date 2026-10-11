@@ -701,10 +701,18 @@ class GrazingPlanEventsForm extends FormBase {
       // Convert the submitted next planned movement date to a timestamp.
       $anchor_start = (int) strtotime((string) ($grazing_events['pending_start']['date'] ?? ''));
 
+      // Get the pending grazing event rows, and ensure that it is an array.
+      // If the pending table has no rows, Form API will return store its value
+      // as an empty string.
+      $rows = $grazing_events['pending'];
+      if (!is_array($rows)) {
+        $rows = [];
+      }
+
       // Update and reorder the pending grazing events and recompute their
       // start dates. Completed grazing events are not editable, so they are
       // not updated.
-      $this->processPendingGrazingEvents($plan, (int) $asset_id, $grazing_events['pending'] ?? [], $anchor_start);
+      $this->processPendingGrazingEvents($plan, (int) $asset_id, $rows, $anchor_start);
     }
 
     // Tell the user that grazing events were updated.
