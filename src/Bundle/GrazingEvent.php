@@ -19,14 +19,7 @@ class GrazingEvent extends PlanRecord implements GrazingEventInterface {
    * {@inheritdoc}
    */
   public function label() {
-
-    // Build label with the referenced plan and log.
-    if ($plan = $this->getPlan()) {
-      return $this->t('Grazing event: %log - %plan', ['%log' => $this->getLog()->label(), '%plan' => $plan->label()]);
-    }
-
-    // Fallback to default.
-    return parent::label();
+    return $this->t('Grazing event: %log - %plan', ['%log' => $this->getLog()->label(), '%plan' => $this->getPlan()->label()]);
   }
 
   /**
