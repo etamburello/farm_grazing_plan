@@ -15,9 +15,9 @@ interface GrazingEventInterface extends PlanRecordInterface {
   /**
    * Returns the grazing event's movement log.
    *
-   * @return \Drupal\log\Entity\LogInterface|null
-   *   The log entity or NULL if not assigned.
+   * @return \Drupal\log\Entity\LogInterface
+   *   The log entity.
    */
-  public function getLog(): ?LogInterface;
+  public function getLog(): LogInterface;
 
 }

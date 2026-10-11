@@ -22,12 +22,7 @@ class GrazingEvent extends PlanRecord implements GrazingEventInterface {
 
     // Build label with the referenced plan and log.
     if ($plan = $this->getPlan()) {
-      if ($log = $this->getLog()) {
-        return $this->t('Grazing event: %log - %plan', ['%log' => $log->label(), '%plan' => $plan->label()]);
-      }
-
-      // Use the plan if no plant reference.
-      return $this->t('Grazing event - %plan', ['%plan' => $plan->label()]);
+      return $this->t('Grazing event: %log - %plan', ['%log' => $this->getLog()->label(), '%plan' => $plan->label()]);
     }
 
     // Fallback to default.
@@ -37,11 +32,7 @@ class GrazingEvent extends PlanRecord implements GrazingEventInterface {
   /**
    * {@inheritdoc}
    */
-  public function getLog(): ?LogInterface {
-    if ($this->get('log')->isEmpty()) {
-      return NULL;
-    }
+  public function getLog(): LogInterface {
     return $this->get('log')->referencedEntities()[0];
   }
-
 }
