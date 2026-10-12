@@ -94,6 +94,29 @@ class QuickGrazingEventCompleteTest extends QuickFormTestBase {
     $this->assertCount(3, $options);
     $this->assertArrayHasKey('', $options);
 
+    // Without a query parameter, no grazing event is preselected.
+    $this->assertNull($form['grazing_event']['#default_value']);
+
+    // Get the IDs of the pending grazing event options.
+    $option_ids = array_filter(array_keys($options), function ($key) {
+      return $key !== '';
+    });
+
+    // For each pending grazing event, confirm that the query parameter
+    // preselects the corresponding option in the dropdown.
+    foreach ($option_ids as $event_id) {
+      \Drupal::request()->query->set('grazing_event', $event_id);
+      $form = \Drupal::service('form_builder')->getForm(QuickForm::class, $this->quickFormId);
+      $this->assertEquals($event_id, $form['grazing_event']['#default_value']);
+      \Drupal::request()->query->remove('grazing_event');
+    }
+
+    // Confirm that an unknown grazing event ID does not preselect any option.
+    \Drupal::request()->query->set('grazing_event', 999999);
+    $form = \Drupal::service('form_builder')->getForm(QuickForm::class, $this->quickFormId);
+    $this->assertNull($form['grazing_event']['#default_value']);
+    \Drupal::request()->query->remove('grazing_event');
+
     // Complete the first pending grazing event and confirm its log is marked
     // as done.
     $first_event_id = array_key_first(array_filter($options, function ($value, $key) {

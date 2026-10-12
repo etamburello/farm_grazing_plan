@@ -11,6 +11,7 @@ use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\farm_grazing_plan\GrazingPlanInterface;
 use Drupal\farm_quick\Attribute\QuickForm;
 use Drupal\farm_quick\Plugin\QuickForm\QuickFormBase;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * Complete grazing event quick form.
@@ -33,6 +34,7 @@ class GrazingEventComplete extends QuickFormBase {
     EntityTypeManagerInterface $entity_type_manager,
     AccountInterface $current_user,
     protected GrazingPlanInterface $grazingPlan,
+    protected RequestStack $requestStack,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $entity_type_manager, $current_user);
   }
@@ -42,12 +44,21 @@ class GrazingEventComplete extends QuickFormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
 
+    // Get the options for the grazing event select element.
+    $options = $this->getGrazingEventOptions();
+
+    // If a grazing event is specified in the query string, preselect it, as
+    // long as it is one of the available options.
+    $grazing_event_id = (int) $this->requestStack->getCurrentRequest()->query->get('grazing_event');
+    $default = array_key_exists($grazing_event_id, $options) ? $grazing_event_id : NULL;
+
     // Select the grazing event to complete.
     $form['grazing_event'] = [
       '#type' => 'select',
       '#title' => $this->t('Grazing event'),
       '#description' => $this->t('Select a pending grazing event. Only events from "active" plans are included.'),
-      '#options' => $this->getGrazingEventOptions(),
+      '#options' => $options,
+      '#default_value' => $default,
       '#required' => TRUE,
     ];
 

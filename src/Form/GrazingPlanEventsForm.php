@@ -557,7 +557,14 @@ class GrazingPlanEventsForm extends FormBase {
    * Submit handler for the "Complete" button on the first pending event.
    */
   public function completeGrazingEvent(array &$form, FormStateInterface $form_state) {
-    $form_state->setRedirect('farm.quick.grazing_event_complete');
+
+    // Get the grazing event ID from the triggering element.
+    $grazing_event_id = $form_state->getTriggeringElement()['#parents'][3];
+
+    // Redirect to the quick form, preselecting the grazing event.
+    $form_state->setRedirect('farm.quick.grazing_event_complete', [], [
+      'query' => ['grazing_event' => $grazing_event_id],
+    ]);
   }
 
   /**
