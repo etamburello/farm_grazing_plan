@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-alpha6] 2026-10-12
+
 ### Added
 
 - Add a "Complete grazing event" quick form that shows a dropdown of the next
@@ -129,7 +131,8 @@ Here is a summary of the major features this release provides:
   [svelte-gantt](https://github.com/ANovokmet/svelte-gantt), with the ability to
   view by asset or by location.
 
-[Unreleased]: https://github.com/mstenta/farm_grazing_plan/compare/1.0.0-alpha5...HEAD
+[Unreleased]: https://github.com/mstenta/farm_grazing_plan/compare/1.0.0-alpha6...HEAD
+[1.0.0-alpha6]: https://github.com/mstenta/farm_grazing_plan/releases/tag/1.0.0-alpha6
 [1.0.0-alpha5]: https://github.com/mstenta/farm_grazing_plan/releases/tag/1.0.0-alpha5
 [1.0.0-alpha4]: https://github.com/mstenta/farm_grazing_plan/releases/tag/1.0.0-alpha4
 [1.0.0-alpha3]: https://github.com/mstenta/farm_grazing_plan/releases/tag/1.0.0-alpha3
