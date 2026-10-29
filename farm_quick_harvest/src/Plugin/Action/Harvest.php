@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1)
+
 namespace Drupal\farm_quick_harvest\Plugin\Action;
 
 use Drupal\Core\Action\Attribute\Action;
