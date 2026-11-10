@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- On "Complete grazing event" submit, update the movement log (status, actual
+  timestamp, notes, geometry) and create optional previous/next paddock
+  observation logs with photos and quantity data when those values are
+  submitted.
+
 ## [1.0.0-alpha6] 2026-10-12
 
 ### Added

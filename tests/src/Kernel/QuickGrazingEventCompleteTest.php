@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\farm_grazing_plan\Kernel;
 
+use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Tests\farm_grazing_plan\Traits\MockGrazingPlanEntitiesTrait;
 use Drupal\Tests\farm_quick\Kernel\QuickFormTestBase;
 use Drupal\farm_quick\Form\QuickForm;
@@ -36,6 +37,10 @@ class QuickGrazingEventCompleteTest extends QuickFormTestBase {
     'farm_grazing_plan',
     'farm_id_tag',
     'farm_land',
+    'farm_observation',
+    'farm_quantity_standard',
+    'file',
+    'image',
     'plan',
   ];
 
@@ -46,12 +51,15 @@ class QuickGrazingEventCompleteTest extends QuickFormTestBase {
     parent::setUp();
     $this->installEntitySchema('plan');
     $this->installEntitySchema('plan_record');
+    $this->installEntitySchema('file');
     $this->installConfig([
       'farm_activity',
       'farm_animal',
       'farm_animal_type',
       'farm_grazing_plan',
       'farm_land',
+      'farm_observation',
+      'farm_quantity_standard',
     ]);
   }
 
@@ -125,10 +133,51 @@ class QuickGrazingEventCompleteTest extends QuickFormTestBase {
     /** @var \Drupal\farm_grazing_plan\Bundle\GrazingEvent $grazing_event */
     $grazing_event = \Drupal::entityTypeManager()->getStorage('plan_record')->load($first_event_id);
     $log_id = $grazing_event->getLog()->id();
+    $planned_start = (int) $grazing_event->get('start')->value;
     $this->assertEquals('pending', $grazing_event->getLog()->get('status')->value);
-    $this->submitQuickForm(['grazing_event' => $first_event_id]);
+    $actual_timestamp = strtotime('2024-06-15 10:30:00');
+    $this->submitQuickForm([
+      'grazing_event' => $first_event_id,
+      'date' => DrupalDateTime::createFromTimestamp($actual_timestamp),
+      'notes' => [
+        'value' => 'Completed in the field.',
+        'format' => 'default',
+      ],
+      'observations' => [
+        'next' => [
+          'quantities' => [
+            [
+              'label' => 'Graze height',
+              'value' => '12',
+              'units' => 'cm',
+              'measure' => 'length',
+            ],
+          ],
+          'notes' => [
+            'value' => 'Pre-graze height recorded.',
+            'format' => 'default',
+          ],
+        ],
+      ],
+    ]);
     $log = \Drupal::entityTypeManager()->getStorage('log')->load($log_id);
     $this->assertEquals('done', $log->get('status')->value);
+    $this->assertEquals($actual_timestamp, (int) $log->get('timestamp')->value);
+    $this->assertStringContainsString('Completed in the field.', $log->get('notes')->value);
+
+    // Planned start on the grazing event plan record is unchanged.
+    $grazing_event = \Drupal::entityTypeManager()->getStorage('plan_record')->load($first_event_id);
+    $this->assertEquals($planned_start, (int) $grazing_event->get('start')->value);
+
+    // Confirm a next-paddock observation log was created with the quantity.
+    $observation_logs = \Drupal::entityTypeManager()->getStorage('log')->loadByProperties([
+      'type' => 'observation',
+    ]);
+    $this->assertNotEmpty($observation_logs);
+    $observation = reset($observation_logs);
+    $this->assertStringContainsString('Next paddock observation', $observation->label());
+    $this->assertCount(1, $observation->get('quantity')->referencedEntities());
+    $this->assertEquals('12', $observation->get('quantity')->referencedEntities()[0]->get('value')[0]->get('decimal')->getValue());
 
     // Confirm the quick form now offers the remaining pending grazing event,
     // and complete it.
