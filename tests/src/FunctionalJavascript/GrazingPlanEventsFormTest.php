@@ -74,6 +74,7 @@ class GrazingPlanEventsFormTest extends FarmWebDriverTestBase {
 
     // Grant access to the "Complete grazing event" quick form.
     $permissions[] = 'update any activity log';
+    $permissions[] = 'create observation log';
     $user = $this->drupalCreateUser($permissions);
     $this->drupalLogin($user);
     $this->drupalGet('/plan/' . $this->plan->id());

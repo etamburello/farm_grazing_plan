@@ -9,10 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- On "Complete grazing event" submit, update the movement log (status, actual
-  timestamp, notes, geometry) and create optional previous/next paddock
-  observation logs with photos and quantity data when those values are
-  submitted.
+- Add a GrazingEventWriter service (`farm_grazing_plan.event_writer`) to
+  persist grazing event form submits for completing an existing event or
+  creating a new one in plan order: movement log create/update, plan
+  records, and optional paddock observation logs with photos and quantities.
+- Wire the "Complete grazing event" quick form submit handler through the
+  writer so UI fields (notes, date, geometry, observations) can be added
+  without duplicating persistence logic.
 
 ## [1.0.0-alpha6] 2026-10-12
 

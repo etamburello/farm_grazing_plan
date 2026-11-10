@@ -7,16 +7,13 @@ namespace Drupal\farm_grazing_plan\Plugin\QuickForm;
 use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Render\Markup;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
-use Drupal\asset\Entity\AssetInterface;
 use Drupal\farm_grazing_plan\Bundle\GrazingEventInterface;
+use Drupal\farm_grazing_plan\GrazingEventWriterInterface;
 use Drupal\farm_grazing_plan\GrazingPlanInterface;
 use Drupal\farm_quick\Attribute\QuickForm;
 use Drupal\farm_quick\Plugin\QuickForm\QuickFormBase;
-use Drupal\farm_quick\Traits\QuickLogTrait;
-use Drupal\file\FileInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
@@ -34,8 +31,6 @@ use Symfony\Component\HttpFoundation\RequestStack;
 )]
 class GrazingEventComplete extends QuickFormBase {
 
-  use QuickLogTrait;
-
   public function __construct(
     array $configuration,
     $plugin_id,
@@ -44,6 +39,7 @@ class GrazingEventComplete extends QuickFormBase {
     AccountInterface $current_user,
     protected GrazingPlanInterface $grazingPlan,
     protected RequestStack $requestStack,
+    protected GrazingEventWriterInterface $grazingEventWriter,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $entity_type_manager, $current_user);
   }
@@ -169,42 +165,21 @@ class GrazingEventComplete extends QuickFormBase {
       return;
     }
 
-    // Determine the actual timestamp from submitted form values. Fall back to
-    // "now" when no date is provided.
-    $date = $form_state->getValue('date');
-    $timestamp = $date instanceof DrupalDateTime ? $date->getTimestamp() : time();
-
-    // Update the movement log with completion data. Planned start on the
-    // grazing event plan record is intentionally left unchanged.
-    $log->set('status', 'done');
-    $log->set('timestamp', $timestamp);
+    // Map submitted values into the writer. Extra keys (date, notes, geometry,
+    // observations) are expected from UI fields added by the form owner.
+    $values = [
+      'timestamp' => $this->resolveSubmittedTimestamp($form_state),
+      'observations' => $form_state->getValue('observations') ?? [],
+      'quick_id' => $this->getQuickId(),
+    ];
     if ($form_state->hasValue('notes')) {
-      $log->set('notes', $form_state->getValue('notes'));
+      $values['notes'] = $form_state->getValue('notes');
     }
     if ($form_state->hasValue('geometry')) {
-      $log->set('geometry', $form_state->getValue('geometry'));
+      $values['geometry'] = $form_state->getValue('geometry');
     }
-    $log->setNewRevision(TRUE);
-    $log->setRevisionLogMessage($this->t('Grazing event completed via quick form.')->render());
-    $log->save();
 
-    // Create optional observation logs for previous and next paddocks when
-    // observation values are submitted with the form.
-    $paddocks = $this->getAdjacentPaddocks($grazing_event);
-    $observations = $form_state->getValue('observations') ?? [];
-    foreach (['previous', 'next'] as $key) {
-      $paddock = $paddocks[$key] ?? NULL;
-      if (!$paddock || empty($observations[$key])) {
-        continue;
-      }
-      $this->createPaddockObservationLog(
-        $paddock,
-        $grazing_event->getAsset(),
-        $timestamp,
-        $observations[$key],
-        $key,
-      );
-    }
+    $this->grazingEventWriter->completeGrazingEvent($grazing_event, $values);
 
     // Tell the user that the grazing event was completed.
     $this->messenger()->addMessage($this->t('Completed grazing event: %label', ['%label' => $grazing_event->label()]));
@@ -236,123 +211,23 @@ class GrazingEventComplete extends QuickFormBase {
   }
 
   /**
-   * Get previous and next paddock assets for a grazing event.
-   *
-   * Previous is the location of the prior event for the same asset in the
-   * plan. Next is the location of the selected event (paddock being entered).
-   *
-   * @param \Drupal\farm_grazing_plan\Bundle\GrazingEventInterface $grazing_event
-   *   The grazing event being completed.
-   *
-   * @return array{previous: ?\Drupal\asset\Entity\AssetInterface, next: \Drupal\asset\Entity\AssetInterface}
-   *   Adjacent paddock assets.
+   * Resolve an actual timestamp from submitted form values.
    */
-  protected function getAdjacentPaddocks(GrazingEventInterface $grazing_event): array {
-    $previous = NULL;
-    $next = $grazing_event->getLocation();
-    $events = array_values($this->grazingPlan->getGrazingEventsByAsset($grazing_event->getPlan())[$grazing_event->getAsset()->id()] ?? []);
-    foreach ($events as $index => $event) {
-      if ((int) $event->id() === (int) $grazing_event->id()) {
-        if ($index > 0) {
-          $previous = $events[$index - 1]->getLocation();
-        }
-        break;
-      }
+  protected function resolveSubmittedTimestamp(FormStateInterface $form_state): int {
+    $date = $form_state->getValue('date');
+    if ($date instanceof DrupalDateTime) {
+      return $date->getTimestamp();
     }
-    return [
-      'previous' => $previous,
-      'next' => $next,
-    ];
-  }
-
-  /**
-   * Create an observation log for a paddock.
-   *
-   * Stores paddock check-in/out observation data, including optional photos
-   * and quantity measurements, in the farmOS database.
-   *
-   * @param \Drupal\asset\Entity\AssetInterface $paddock
-   *   The paddock (location) asset.
-   * @param \Drupal\asset\Entity\AssetInterface $animal_asset
-   *   The animal/group asset from the grazing event.
-   * @param int $timestamp
-   *   The observation timestamp.
-   * @param array $values
-   *   Submitted observation values for one paddock.
-   * @param string $key
-   *   Either "previous" or "next".
-   */
-  protected function createPaddockObservationLog(AssetInterface $paddock, AssetInterface $animal_asset, int $timestamp, array $values, string $key): void {
-    $quantities = [];
-    foreach ($values['quantities'] ?? [] as $quantity) {
-      if ($quantity['value'] === '' || $quantity['value'] === NULL) {
-        continue;
-      }
-      $quantities[] = [
-        'type' => 'standard',
-        'label' => $quantity['label'] ?? '',
-        'measure' => $quantity['measure'] ?? 'length',
-        'value' => $quantity['value'],
-        'units' => !empty($quantity['units']) ? $quantity['units'] : 'cm',
-      ];
+    if (is_array($date) && isset($date['object']) && $date['object'] instanceof DrupalDateTime) {
+      return $date['object']->getTimestamp();
     }
-
-    $images = $this->prepareUploadedImages($values['photos'] ?? []);
-
-    // Skip creating an empty observation log when the user did not provide
-    // photos, quantities, or notes.
-    $notes = $values['notes'] ?? NULL;
-    $has_notes = is_array($notes) ? !empty($notes['value']) : !empty($notes);
-    if (empty($quantities) && empty($images) && !$has_notes) {
-      return;
+    if (is_numeric($date)) {
+      return (int) $date;
     }
-
-    $name = $key === 'previous'
-      ? $this->t('Previous paddock observation: @paddock', ['@paddock' => Markup::create($paddock->label())])
-      : $this->t('Next paddock observation: @paddock', ['@paddock' => Markup::create($paddock->label())]);
-
-    $log_values = [
-      'type' => 'observation',
-      'name' => $name,
-      'timestamp' => $timestamp,
-      'asset' => [$paddock, $animal_asset],
-      'location' => [$paddock],
-      'status' => 'done',
-    ];
-    if ($has_notes) {
-      $log_values['notes'] = $notes;
+    if ($form_state->hasValue('timestamp') && is_numeric($form_state->getValue('timestamp'))) {
+      return (int) $form_state->getValue('timestamp');
     }
-    if (!empty($quantities)) {
-      $log_values['quantity'] = $quantities;
-    }
-    if (!empty($images)) {
-      $log_values['image'] = $images;
-    }
-
-    $this->createLog($log_values);
-  }
-
-  /**
-   * Make uploaded image files permanent and return file IDs for log fields.
-   *
-   * @param array $fids
-   *   File IDs from a managed_file element.
-   *
-   * @return int[]
-   *   Permanent file IDs.
-   */
-  protected function prepareUploadedImages(array $fids): array {
-    $images = [];
-    foreach ($fids as $fid) {
-      $file = $this->entityTypeManager->getStorage('file')->load($fid);
-      if (!$file instanceof FileInterface) {
-        continue;
-      }
-      $file->setPermanent();
-      $file->save();
-      $images[] = (int) $file->id();
-    }
-    return $images;
+    return time();
   }
 
 }
